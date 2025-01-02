@@ -173,3 +173,18 @@ main {
 input:focus, textarea:focus, select:focus {
   box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
 }
+
+/* Loading animation */
+@keyframes pulse-green {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.loading-pulse {
+  animation: pulse-green 1s ease-in-out infinite;
+  cursor: wait;
+}

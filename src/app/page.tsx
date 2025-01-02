@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 
 const CHARACTERS = [
@@ -31,11 +31,21 @@ interface FormData {
   startDate: string;
 }
 
+interface Participant {
+  id: number;
+  name: string;
+  character: number;
+  createdAt: string;
+}
+
 export default function Home() {
   const [showForm, setShowForm] = useState(false);
   const [formStep, setFormStep] = useState(1);
   const [selectedCharacter, setSelectedCharacter] = useState<number | null>(null);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [isLoadingParticipants, setIsLoadingParticipants] = useState(true);
   const [formData, setFormData] = useState<FormData>({
     name: "",
     character: null,
@@ -50,6 +60,25 @@ export default function Home() {
     startDate: "ESTA SEMANA"
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  useEffect(() => {
+    const fetchParticipants = async () => {
+      try {
+        const response = await fetch('/api/resolutions');
+        if (!response.ok) {
+          throw new Error('Failed to fetch participants');
+        }
+        const data = await response.json();
+        setParticipants(data);
+      } catch (error) {
+        console.error('Error fetching participants:', error);
+      } finally {
+        setIsLoadingParticipants(false);
+      }
+    };
+
+    fetchParticipants();
+  }, [showForm]); // Refetch when form is closed (new submission)
 
   const validateStep = (step: number): boolean => {
     const newErrors: { [key: string]: string } = {};
@@ -98,23 +127,42 @@ export default function Home() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (validateStep(3)) {
-      console.log('Form submitted with data:', formData);
-      setShowSuccessMessage(true);
-      setTimeout(() => {
-        setShowSuccessMessage(false);
-        setShowForm(false);
-        setFormStep(1);
-        setSelectedCharacter(null);
-        setFormData({
-          name: "",
-          character: null,
-          resolutions: { first: "", second: "", third: "" },
-          requirements: "",
-          firstStep: "",
-          helpers: [],
-          startDate: "ESTA SEMANA"
+      try {
+        setIsSubmitting(true);
+        const response = await fetch('/api/resolutions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
         });
-      }, 5000);
+
+        if (!response.ok) {
+          throw new Error('Failed to save resolution');
+        }
+
+        console.log('Form submitted with data:', formData);
+        setShowSuccessMessage(true);
+        setTimeout(() => {
+          setShowSuccessMessage(false);
+          setShowForm(false);
+          setFormStep(1);
+          setSelectedCharacter(null);
+          setFormData({
+            name: "",
+            character: null,
+            resolutions: { first: "", second: "", third: "" },
+            requirements: "",
+            firstStep: "",
+            helpers: [],
+            startDate: "ESTA SEMANA"
+          });
+        }, 5000);
+      } catch (error) {
+        console.error('Error saving resolution:', error);
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -286,6 +334,7 @@ export default function Home() {
                     errors.requirements ? 'border-red-500' : 'border-green-400'
                   } p-2 text-green-400 focus:outline-none focus:ring-2 focus:ring-green-400 h-40`}
                   placeholder="ME GUSTARÍA QUE..."
+                  disabled={isSubmitting}
                 />
                 {errors.requirements && (
                   <p className="error-message error-shake">{errors.requirements}</p>
@@ -298,14 +347,19 @@ export default function Home() {
                 type="button"
                 onClick={handlePrevStep}
                 className="w-1/2 px-8 py-4 border-2 border-green-400 hover:bg-green-400 hover:text-black transition-colors text-sm"
+                disabled={isSubmitting}
               >
                 ← ATRÁS
               </button>
               <button
                 type="submit"
-                className="w-1/2 px-8 py-4 border-2 border-green-400 hover:bg-green-400 hover:text-black transition-colors text-sm"
+                disabled={isSubmitting}
+                className={`w-1/2 px-8 py-4 border-2 border-green-400 transition-colors text-sm
+                  ${isSubmitting 
+                    ? 'loading-pulse cursor-wait opacity-80' 
+                    : 'hover:bg-green-400 hover:text-black'}`}
               >
-                ¡FINALIZAR!
+                {isSubmitting ? 'GUARDANDO...' : '¡FINALIZAR!'}
               </button>
             </div>
           </div>
@@ -360,26 +414,36 @@ export default function Home() {
               <div className="w-full border-2 border-green-400 bg-black/80 p-6">
                 <h2 className="text-sm mb-4 text-center">YA PARTICIPARON</h2>
                 <div className="max-h-[320px] overflow-y-auto custom-scrollbar">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-0.5">
-                    {[...PLAYERS, ...PLAYERS].map((player, index) => (
-                      <div 
-                        key={`${player.name}-${index}`} 
-                        className="flex flex-col items-center gap-2 p-2 border border-green-400/30 hover:border-green-400 transition-colors bg-black"
-                      >
-                        <div className="relative w-12 h-[30px] mb-2">
-                          <Image
-                            src={player.avatar}
-                            alt={player.name}
-                            fill
-                            className="pixelated object-contain"
-                          />
+                  {isLoadingParticipants ? (
+                    <div className="text-center py-8 loading-pulse">
+                      CARGANDO PARTICIPANTES...
+                    </div>
+                  ) : participants.length === 0 ? (
+                    <div className="text-center py-8 opacity-60">
+                      SOS LA PRIEMRA PERSONA EN PARTICIPAR
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-0.5">
+                      {participants.map((participant) => (
+                        <div 
+                          key={participant.id}
+                          className="flex flex-col items-center gap-2 p-2 border border-green-400/30 hover:border-green-400 transition-colors bg-black"
+                        >
+                          <div className="relative w-12 h-[30px] mb-2">
+                            <Image
+                              src={`/avatars/${participant.character}.png`}
+                              alt={participant.name}
+                              fill
+                              className="pixelated object-contain"
+                            />
+                          </div>
+                          <div className="text-[10px] text-center">
+                            <p className="font-bold mb-1">{participant.name}</p>
+                          </div>
                         </div>
-                        <div className="text-[10px] text-center">
-                          <p className="font-bold mb-1">{player.name}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               <button
