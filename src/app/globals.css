@@ -3,19 +3,125 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #000000;
+  --foreground: #00ff00;
+  --grid-size: 50px;
+  --grid-strength: 2px;
+  --grid-color: rgba(0, 255, 0, 0.2);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 255, 0, 0.1);
+  border: 1px solid rgba(0, 255, 0, 0.2);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--foreground);
+  border: 1px solid var(--foreground);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 0, 0.8);
+}
+
+/* Ensure pixel art renders crisply */
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+@keyframes gridMove {
+  0% {
+    transform: perspective(500px) rotateX(60deg) translateY(0);
   }
+  100% {
+    transform: perspective(500px) rotateX(60deg) translateY(var(--grid-size));
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scanline {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+.grid-background {
+  position: fixed;
+  top: -100%;
+  left: -50%;
+  right: -50%;
+  bottom: -100%;
+  background-image: 
+    linear-gradient(var(--grid-color) var(--grid-strength), transparent var(--grid-strength)),
+    linear-gradient(90deg, var(--grid-color) var(--grid-strength), transparent var(--grid-strength));
+  background-size: var(--grid-size) var(--grid-size);
+  transform-origin: center center;
+  animation: gridMove 3s linear infinite;
+  z-index: 0;
 }
 
 body {
   color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--background);
+  position: relative;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.9) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  background: linear-gradient(
+    transparent 0%,
+    rgba(0, 255, 0, 0.1) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
+  animation: scanline 8s linear infinite;
+  z-index: 2;
+}
+
+/* Make sure the main content is above the effects */
+main {
+  position: relative;
+  z-index: 3;
+  animation: fadeIn 1s ease-out;
+}
+
+/* Enhance form elements with glow effect */
+input:focus, textarea:focus, select:focus {
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
 }
