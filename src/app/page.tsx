@@ -235,7 +235,7 @@ export default function Home() {
         return (
           <div className="form-step-enter">
             <div className="space-y-4">
-              <label className="block text-sm">¿QUÉ TE GUSTARÍA LOGRAR EN 2025?</label>
+              <label className="block text-sm">¿QUÉ TE GUSTARÍA LOGRAR EN 2025 EN ATLAS?</label>
               <p className="text-[10px] mb-4 opacity-80">INGRESA 3 PROPÓSITOS PARA ESTE AÑO</p>
               
               <div className="space-y-6">
@@ -413,7 +413,7 @@ export default function Home() {
                     </div>
                   ) : participants.length === 0 ? (
                     <div className="text-center py-8 opacity-60">
-                      SOS LA PRIEMRA PERSONA EN PARTICIPAR
+                      SOS LA PRIMERA PERSONA EN PARTICIPAR
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-0.5">
