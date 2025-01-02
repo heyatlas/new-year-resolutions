@@ -10,13 +10,6 @@ const CHARACTERS = [
   { id: 4, name: "SANADOR", avatar: "/avatars/4.png", trait: "Compasivo y Paciente" },
 ];
 
-const PLAYERS = [
-  { name: "ALEX_84", quest: "Aprender Desarrollo de Juegos", difficulty: "EXPERTO", avatar: "/avatars/1.png" },
-  { name: "SARA.K", quest: "Correr un Maratón", difficulty: "LEGENDARIO", avatar: "/avatars/2.png" },
-  { name: "MIKE_22", quest: "Iniciar un Negocio", difficulty: "EXPERTO", avatar: "/avatars/3.png" },
-  { name: "JESS_P", quest: "Aprender Japonés", difficulty: "INTERMEDIO", avatar: "/avatars/4.png" },
-];
-
 interface FormData {
   name: string;
   character: number | null;
