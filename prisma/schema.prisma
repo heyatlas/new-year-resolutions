@@ -17,4 +17,5 @@ model Resolution {
   character   Int
   objectives  String[]
   atlasWish   String
+  likes       Int      @default(0)
 } 

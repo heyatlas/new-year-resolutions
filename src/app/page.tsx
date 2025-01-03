@@ -31,6 +31,13 @@ interface Participant {
   createdAt: string;
 }
 
+interface AtlasWish {
+  id: number;
+  atlasWish: string;
+  name: string;
+  likes: number;
+}
+
 export default function Home() {
   const [showForm, setShowForm] = useState(false);
   const [formStep, setFormStep] = useState(1);
@@ -39,6 +46,8 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [isLoadingParticipants, setIsLoadingParticipants] = useState(true);
+  const [wishes, setWishes] = useState<AtlasWish[]>([]);
+  const [isLoadingWishes, setIsLoadingWishes] = useState(true);
   const [formData, setFormData] = useState<FormData>({
     name: "",
     character: null,
@@ -53,6 +62,8 @@ export default function Home() {
     startDate: "ESTA SEMANA"
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [likedWishes, setLikedWishes] = useState<Set<number>>(new Set());
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const fetchParticipants = async () => {
@@ -70,7 +81,23 @@ export default function Home() {
       }
     };
 
+    const fetchWishes = async () => {
+      try {
+        const response = await fetch('/api/wishes');
+        if (!response.ok) {
+          throw new Error('Failed to fetch wishes');
+        }
+        const data = await response.json();
+        setWishes(data);
+      } catch (error) {
+        console.error('Error fetching wishes:', error);
+      } finally {
+        setIsLoadingWishes(false);
+      }
+    };
+
     fetchParticipants();
+    fetchWishes();
   }, [showForm]); // Refetch when form is closed (new submission)
 
   const validateStep = (step: number): boolean => {
@@ -156,6 +183,60 @@ export default function Home() {
       } finally {
         setIsSubmitting(false);
       }
+    }
+  };
+
+  const handleLike = async (wishId: number) => {
+    if (likedWishes.has(wishId)) return; // Prevent multiple likes
+
+    // Optimistic update
+    setWishes(prevWishes => 
+      prevWishes.map(wish => 
+        wish.id === wishId 
+          ? { ...wish, likes: (wish.likes || 0) + 1 }
+          : wish
+      )
+    );
+    setLikedWishes(prev => new Set([...prev, wishId]));
+
+    try {
+      const response = await fetch('/api/wishes/like', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id: wishId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to like wish');
+      }
+
+      const updatedWish = await response.json();
+      
+      // Update with actual server response
+      setWishes(prevWishes => 
+        prevWishes.map(wish => 
+          wish.id === wishId 
+            ? { ...wish, likes: updatedWish.likes }
+            : wish
+        )
+      );
+    } catch (error) {
+      console.error('Error liking wish:', error);
+      // Revert optimistic update on error
+      setWishes(prevWishes => 
+        prevWishes.map(wish => 
+          wish.id === wishId 
+            ? { ...wish, likes: (wish.likes || 0) - 1 }
+            : wish
+        )
+      );
+      setLikedWishes(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(wishId);
+        return newSet;
+      });
     }
   };
 
@@ -390,7 +471,116 @@ export default function Home() {
     <>
       <div className="grid-background" />
       {showSuccessMessage && <SuccessMessage />}
+
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setIsMobileMenuOpen(prev => !prev)}
+        className="md:hidden fixed top-4 right-4 z-30 bg-black border-2 border-green-400 p-2 text-[10px]"
+      >
+        {isMobileMenuOpen ? 'CERRAR' : 'VER DESEOS'}
+      </button>
+
+      {/* Mobile Wishes Menu */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 bg-black/95 z-20 overflow-y-auto p-8">
+          <div className="max-w-sm mx-auto space-y-4 pt-12">
+            <h3 className="text-[10px] text-center mb-6 border-b border-green-400 pb-2">
+              DESEOS PARA ATLAS EN 2025
+            </h3>
+            {!isLoadingWishes && wishes.map((wish) => (
+              <div
+                key={wish.id}
+                className="bg-black border-2 border-green-400 p-4 text-[10px] leading-relaxed shadow-lg"
+              >
+                <p className="mb-2">{wish.atlasWish}</p>
+                <div className="flex justify-between items-center text-[8px] text-green-400/70">
+                  <p>- {wish.name}</p>
+                  <button 
+                    onClick={() => handleLike(wish.id)}
+                    className={`flex items-center gap-1 transition-colors ${
+                      likedWishes.has(wish.id) ? 'text-red-500' : 'hover:text-red-500'
+                    }`}
+                    disabled={likedWishes.has(wish.id)}
+                  >
+                    <span>{wish.likes || 0}</span>
+                    <span className="text-base">❤</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="min-h-screen bg-transparent text-green-400 p-8 font-[family-name:var(--font-press-start)]">
+        {/* Left Wishes Stickers - Desktop Only */}
+        <div className="hidden md:block fixed left-8 top-1/2 -translate-y-1/2 space-y-4 max-w-[200px] z-10">
+          <h3 className="text-[10px] text-center mb-6 rotate-3"
+              style={{
+                transform: `rotate(${-10}deg)`,
+              }}>
+            DESEOS PARA ATLAS EN 2025
+          </h3>
+          {!isLoadingWishes && wishes.slice(0, Math.ceil(wishes.length / 2)).map((wish, index) => (
+            <div
+              key={wish.id}
+              className="bg-black border-2 border-green-400 p-4 text-[10px] leading-relaxed rotate-3 hover:rotate-0 transition-transform shadow-lg hover:z-20"
+              style={{
+                transform: `rotate(${(index * 7) - 10}deg)`,
+              }}
+            >
+              <p className="mb-2">{wish.atlasWish}</p>
+              <div className="flex justify-between items-center text-[8px] text-green-400/70">
+                <p>- {wish.name}</p>
+                <button 
+                  onClick={() => handleLike(wish.id)}
+                  className={`flex items-center gap-1 transition-colors ${
+                    likedWishes.has(wish.id) ? 'text-red-500' : 'hover:text-red-500'
+                  }`}
+                  disabled={likedWishes.has(wish.id)}
+                >
+                  <span>{wish.likes || 0}</span>
+                  <span className="text-base">❤</span>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Right Wishes Stickers - Desktop Only */}
+        <div className="hidden md:block fixed right-8 top-1/2 -translate-y-1/2 space-y-4 max-w-[200px] z-10">
+          <h3 className="text-[10px] text-center mb-6 -rotate-3"
+              style={{
+                transform: `rotate(${10}deg)`,
+              }}>
+            DESEOS PARA ATLAS EN 2025
+          </h3>
+          {!isLoadingWishes && wishes.slice(Math.ceil(wishes.length / 2)).map((wish, index) => (
+            <div
+              key={wish.id}
+              className="bg-black border-2 border-green-400 p-4 text-[10px] leading-relaxed -rotate-3 hover:rotate-0 transition-transform shadow-lg hover:z-20"
+              style={{
+                transform: `rotate(${(-index * 7) + 10}deg)`,
+              }}
+            >
+              <p className="mb-2">{wish.atlasWish}</p>
+              <div className="flex justify-between items-center text-[8px] text-green-400/70">
+                <p>- {wish.name}</p>
+                <button 
+                  onClick={() => handleLike(wish.id)}
+                  className={`flex items-center gap-1 transition-colors ${
+                    likedWishes.has(wish.id) ? 'text-red-500' : 'hover:text-red-500'
+                  }`}
+                  disabled={likedWishes.has(wish.id)}
+                >
+                  <span>{wish.likes || 0}</span>
+                  <span className="text-base">❤</span>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
         <main className="max-w-2xl mx-auto flex flex-col items-center gap-8 pt-16">
           <h1 className="text-2xl md:text-4xl text-center leading-relaxed mb-8 animate-pulse">
             NEW YEAR ATLAS RESOLUTIONS
